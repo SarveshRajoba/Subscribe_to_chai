@@ -2,17 +2,24 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import {
-  CancelResult, LedgerEntry, MenuItem, Order, Plan, Shop, ShopEarnings,
-  Subscription, Wallet
+  AuthResponse, CancelResult, MenuItem, Order, Plan, Shop, ShopEarnings,
+  Subscription, UserRole, Wallet
 } from './models';
+import { environment } from '../../environments/environment';
 
-// Local dev API. On a phone/emulator, replace localhost with your machine's
-// LAN IP (e.g. http://192.168.1.5:5238/api).
-export const API_BASE = 'http://localhost:5238/api';
+const API_BASE = environment.apiUrl;
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  constructor(private http: HttpClient) {}
+  constructor(protected http: HttpClient) {}
+
+  // ---- Auth ----
+  login(email: string, password: string): Promise<AuthResponse> {
+    return this.post<AuthResponse>('/auth/login', { email, password });
+  }
+  register(name: string, email: string, password: string, role: UserRole): Promise<AuthResponse> {
+    return this.post<AuthResponse>('/auth/register', { name, email, password, role });
+  }
 
   // ---- Shops (public) ----
   getShops(): Promise<Shop[]> {
@@ -81,13 +88,13 @@ export class ApiService {
     return this.get<Wallet>('/wallet');
   }
 
-  private get<T>(path: string): Promise<T> {
+  protected get<T>(path: string): Promise<T> {
     return firstValueFrom(this.http.get<T>(`${API_BASE}${path}`));
   }
-  private post<T>(path: string, body: unknown): Promise<T> {
+  protected post<T>(path: string, body: unknown): Promise<T> {
     return firstValueFrom(this.http.post<T>(`${API_BASE}${path}`, body));
   }
-  private put<T>(path: string, body: unknown): Promise<T> {
+  protected put<T>(path: string, body: unknown): Promise<T> {
     return firstValueFrom(this.http.put<T>(`${API_BASE}${path}`, body));
   }
 }

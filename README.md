@@ -36,6 +36,20 @@ SQLite is for development only — the connection string in
 `appsettings.json` and the `UseSqlite` call in `Program.cs` are the only
 things to change for PostgreSQL (`Npgsql.EntityFrameworkCore.PostgreSQL`).
 
+## Web demo (no backend needed)
+
+The production build runs in **demo mode**: an in-browser store with seeded
+shops that follows the same escrow rules as the real API (data persists in
+localStorage). Register as a customer, or login as `owner@demo.com` (any
+password) to see the shop side.
+
+- Pushing to `main` auto-deploys the demo to GitHub Pages via
+  `.github/workflows/deploy-web.yml`.
+- Demo mode is controlled by `apiUrl` in
+  `mobile/src/environments/environment.prod.ts` — empty means demo; set it
+  to the deployed API URL once the backend is hosted, and the same build
+  becomes the real app.
+
 ## Run it
 
 Backend (needs .NET 8 SDK):

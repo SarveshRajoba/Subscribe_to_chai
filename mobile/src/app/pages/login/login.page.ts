@@ -7,6 +7,7 @@ import {
 } from '@ionic/angular/standalone';
 import { AuthService } from '../../core/auth.service';
 import { UserRole } from '../../core/models';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -58,15 +59,27 @@ import { UserRole } from '../../core/models';
         <ion-button expand="block" (click)="submit()" [disabled]="busy">
           {{ mode === 'login' ? 'Login' : 'Register' }}
         </ion-button>
+
+        @if (demoMode) {
+          <ion-text color="medium">
+            <p class="demo-note">
+              Demo mode — data stays in your browser.
+              Register as a customer, or login as owner&#64;demo.com
+              (any password) to see the shop side.
+            </p>
+          </ion-text>
+        }
       </div>
     </ion-content>
   `,
   styles: [`
     .wrap { max-width: 420px; margin: 0 auto; }
     ion-button { margin-top: 16px; }
+    .demo-note { text-align: center; font-size: 0.85rem; }
   `]
 })
 export class LoginPage {
+  readonly demoMode = !environment.apiUrl;
   mode: 'login' | 'register' = 'login';
   name = '';
   email = '';

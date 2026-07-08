@@ -1,8 +1,7 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
 import { AuthResponse, UserRole } from './models';
-import { API_BASE } from './api.service';
+import { ApiService } from './api.service';
+import { storage } from './storage';
 
 const STORAGE_KEY = 'chai_auth';
 
@@ -10,7 +9,7 @@ const STORAGE_KEY = 'chai_auth';
 export class AuthService {
   readonly user = signal<AuthResponse | null>(this.restore());
 
-  constructor(private http: HttpClient) {}
+  constructor(private api: ApiService) {}
 
   get token(): string | null {
     return this.user()?.token ?? null;
@@ -21,33 +20,29 @@ export class AuthService {
   }
 
   async login(email: string, password: string): Promise<AuthResponse> {
-    const res = await firstValueFrom(
-      this.http.post<AuthResponse>(`${API_BASE}/auth/login`, { email, password })
-    );
+    const res = await this.api.login(email, password);
     this.persist(res);
     return res;
   }
 
   async register(name: string, email: string, password: string, role: UserRole): Promise<AuthResponse> {
-    const res = await firstValueFrom(
-      this.http.post<AuthResponse>(`${API_BASE}/auth/register`, { name, email, password, role })
-    );
+    const res = await this.api.register(name, email, password, role);
     this.persist(res);
     return res;
   }
 
   logout(): void {
-    localStorage.removeItem(STORAGE_KEY);
+    storage.remove(STORAGE_KEY);
     this.user.set(null);
   }
 
   private persist(res: AuthResponse): void {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(res));
+    storage.set(STORAGE_KEY, JSON.stringify(res));
     this.user.set(res);
   }
 
   private restore(): AuthResponse | null {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = storage.get(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as AuthResponse) : null;
   }
 }
