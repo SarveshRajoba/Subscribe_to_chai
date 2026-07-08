@@ -1,0 +1,13 @@
+# .NET
+backend/**/bin/
+backend/**/obj/
+backend/**/chai.db*
+
+# Node / Angular / Ionic
+mobile/node_modules/
+mobile/www/
+mobile/.angular/
+
+# Misc
+*.log
+.DS_Store

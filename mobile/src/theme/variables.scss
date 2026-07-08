@@ -1,0 +1,48 @@
+// Chai dark theme: warm charcoal surfaces with an amber (chai) accent.
+// Applied on top of Ionic's always-dark palette (imported in global.scss).
+
+:root {
+  // Amber primary — used by every default button, link and highlight.
+  --ion-color-primary: #e3a548;
+  --ion-color-primary-rgb: 227, 165, 72;
+  --ion-color-primary-contrast: #201503;
+  --ion-color-primary-contrast-rgb: 32, 21, 3;
+  --ion-color-primary-shade: #c8913f;
+  --ion-color-primary-tint: #e6ae5a;
+
+  // Softer red for destructive buttons so it sits well on the warm dark.
+  --ion-color-danger: #e56a5e;
+  --ion-color-danger-rgb: 229, 106, 94;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast-rgb: 255, 255, 255;
+  --ion-color-danger-shade: #ca5d53;
+  --ion-color-danger-tint: #e8796e;
+
+  // Warm near-black background and warm off-white text.
+  --ion-background-color: #171310;
+  --ion-background-color-rgb: 23, 19, 16;
+  --ion-text-color: #f4ede2;
+  --ion-text-color-rgb: 244, 237, 226;
+
+  --ion-toolbar-background: #1e1813;
+  --ion-item-background: #1e1813;
+  --ion-tab-bar-background: #1e1813;
+  --ion-tab-bar-color: #8d8375;
+  --ion-tab-bar-color-selected: var(--ion-color-primary);
+
+  --ion-color-medium: #a3988a;
+  --ion-color-medium-rgb: 163, 152, 138;
+
+  --ion-border-color: #322a22;
+}
+
+// Slightly rounder, calmer buttons across the app.
+ion-button {
+  --border-radius: 8px;
+  text-transform: none;
+}
+
+ion-list-header {
+  color: var(--ion-color-primary);
+  font-size: 0.95rem;
+}
