@@ -32,21 +32,21 @@ import { Plan, Shop } from '../../core/models';
               <ion-note slot="end">₹{{ item.price }}</ion-note>
             </ion-item>
           } @empty {
-            <ion-item lines="none"><ion-label color="medium">No menu items yet.</ion-label></ion-item>
+            <ion-item lines="none"><ion-label>No menu items yet.</ion-label></ion-item>
           }
 
           <ion-list-header><ion-label>Subscription plans</ion-label></ion-list-header>
           @for (plan of activePlans; track plan.id) {
             <ion-item>
               <ion-label>
-                <h2>{{ plan.name }}</h2>
+                <h2>{{ plan.name }} — ₹{{ plan.price }}</h2>
                 <p>{{ plan.cupCount }} × {{ plan.menuItemName }} · valid {{ plan.validityDays }} days</p>
-                <p>Cancel anytime — {{ plan.cancellationFeePercent }}% fee on unused balance</p>
+                <p>Cancellation fee: {{ plan.cancellationFeePercent }}% of unused balance</p>
               </ion-label>
-              <ion-button slot="end" (click)="subscribe(plan)">₹{{ plan.price }}/mo</ion-button>
+              <ion-button slot="end" size="small" (click)="subscribe(plan)">Subscribe</ion-button>
             </ion-item>
           } @empty {
-            <ion-item lines="none"><ion-label color="medium">No plans offered yet.</ion-label></ion-item>
+            <ion-item lines="none"><ion-label>No plans offered yet.</ion-label></ion-item>
           }
         </ion-list>
       }
@@ -73,14 +73,15 @@ export class ShopDetailPage {
   }
 
   async subscribe(plan: Plan): Promise<void> {
-    const perCup = (plan.price / plan.cupCount).toFixed(2);
     const alert = await this.alerts.create({
-      header: plan.name,
-      message: `₹${plan.price} for ${plan.cupCount} cups of ${plan.menuItemName} (₹${perCup}/cup). Use wallet balance if available?`,
+      header: 'Confirm subscription',
+      message: `${plan.name}: ₹${plan.price} for ${plan.cupCount} cups of ${plan.menuItemName}.`,
+      inputs: [
+        { name: 'useWallet', type: 'checkbox', label: 'Use wallet balance', value: 'yes' }
+      ],
       buttons: [
         { text: 'Cancel', role: 'cancel' },
-        { text: 'Pay without wallet', handler: () => void this.doSubscribe(plan, false) },
-        { text: 'Use wallet', handler: () => void this.doSubscribe(plan, true) }
+        { text: 'OK', handler: (data) => void this.doSubscribe(plan, (data as string[]).includes('yes')) }
       ]
     });
     await alert.present();
@@ -89,19 +90,14 @@ export class ShopDetailPage {
   private async doSubscribe(plan: Plan, useWallet: boolean): Promise<void> {
     try {
       await this.api.subscribe(plan.id, useWallet);
-      const t = await this.toast.create({
-        message: `Subscribed! ${plan.cupCount} cups waiting for you.`,
-        duration: 2000,
-        color: 'success'
-      });
-      await t.present();
+      await this.notify('Subscription added.');
     } catch (e: any) {
-      const t = await this.toast.create({
-        message: typeof e?.error === 'string' ? e.error : 'Could not subscribe.',
-        duration: 2500,
-        color: 'danger'
-      });
-      await t.present();
+      await this.notify(typeof e?.error === 'string' ? e.error : 'Could not subscribe.');
     }
+  }
+
+  private async notify(message: string): Promise<void> {
+    const t = await this.toast.create({ message, duration: 2500 });
+    await t.present();
   }
 }

@@ -16,7 +16,7 @@ import { cafeOutline, cardOutline, receiptOutline, storefrontOutline } from 'ion
         </ion-tab-button>
         <ion-tab-button tab="subscriptions">
           <ion-icon name="cafe-outline"></ion-icon>
-          <ion-label>My Cups</ion-label>
+          <ion-label>Subscriptions</ion-label>
         </ion-tab-button>
         <ion-tab-button tab="orders">
           <ion-icon name="receipt-outline"></ion-icon>

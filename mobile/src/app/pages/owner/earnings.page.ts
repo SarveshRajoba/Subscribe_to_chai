@@ -1,8 +1,7 @@
 import { Component } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import {
-  IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle,
-  IonContent, IonHeader, IonItem, IonLabel, IonList, IonNote,
+  IonContent, IonHeader, IonItem, IonLabel, IonList, IonListHeader, IonNote,
   IonRefresher, IonRefresherContent, IonTitle, IonToolbar
 } from '@ionic/angular/standalone';
 import { ApiService } from '../../core/api.service';
@@ -12,9 +11,8 @@ import { Shop, ShopEarnings } from '../../core/models';
   selector: 'app-earnings',
   standalone: true,
   imports: [
-    DatePipe, IonHeader, IonToolbar, IonTitle, IonContent, IonCard,
-    IonCardHeader, IonCardTitle, IonCardSubtitle, IonCardContent,
-    IonList, IonItem, IonLabel, IonNote, IonRefresher, IonRefresherContent
+    DatePipe, IonHeader, IonToolbar, IonTitle, IonContent, IonList,
+    IonListHeader, IonItem, IonLabel, IonNote, IonRefresher, IonRefresherContent
   ],
   template: `
     <ion-header>
@@ -25,27 +23,28 @@ import { Shop, ShopEarnings } from '../../core/models';
         <ion-refresher-content></ion-refresher-content>
       </ion-refresher>
 
-      <ion-card>
-        <ion-card-header>
-          <ion-card-subtitle>Released from escrow, awaiting payout</ion-card-subtitle>
-          <ion-card-title>₹{{ earnings?.payableBalance ?? 0 }}</ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          Money moves here every time you mark an order delivered, plus any cancellation fees.
-        </ion-card-content>
-      </ion-card>
-
       <ion-list>
+        <ion-item>
+          <ion-label>Balance awaiting payout</ion-label>
+          <ion-note slot="end">₹{{ earnings?.payableBalance ?? 0 }}</ion-note>
+        </ion-item>
+        <ion-item lines="full">
+          <ion-label>
+            <p>Money is added when an order is marked delivered, plus any cancellation fees.</p>
+          </ion-label>
+        </ion-item>
+
+        <ion-list-header><ion-label>History</ion-label></ion-list-header>
         @for (entry of earnings?.entries ?? []; track entry.id) {
           <ion-item>
             <ion-label>
               <h3>{{ entry.description }}</h3>
               <p>{{ entry.type }} · {{ entry.createdAt | date:'d MMM, h:mm a' }}</p>
             </ion-label>
-            <ion-note slot="end" color="success">+₹{{ entry.amount }}</ion-note>
+            <ion-note slot="end">₹{{ entry.amount }}</ion-note>
           </ion-item>
         } @empty {
-          <ion-item lines="none"><ion-label>Nothing earned yet — deliver some chai!</ion-label></ion-item>
+          <ion-item lines="none"><ion-label>No earnings yet.</ion-label></ion-item>
         }
       </ion-list>
     </ion-content>

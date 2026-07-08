@@ -54,13 +54,13 @@ import { Shop } from '../../core/models';
           </ion-item>
           <ion-item>
             <ion-toggle [checked]="shop.autoAcceptOrders" (ionChange)="toggleAutoAccept($event)">
-              Auto-accept orders (rush hour mode)
+              Auto-accept orders
             </ion-toggle>
           </ion-item>
 
           <ion-list-header>
             <ion-label>Menu</ion-label>
-            <ion-button (click)="addMenuItem()">Add</ion-button>
+            <ion-button size="small" (click)="addMenuItem()">Add</ion-button>
           </ion-list-header>
           @for (item of shop.menuItems; track item.id) {
             <ion-item>
@@ -68,12 +68,12 @@ import { Shop } from '../../core/models';
               <ion-note slot="end">₹{{ item.price }}</ion-note>
             </ion-item>
           } @empty {
-            <ion-item lines="none"><ion-label color="medium">Add your first beverage.</ion-label></ion-item>
+            <ion-item lines="none"><ion-label>No menu items yet.</ion-label></ion-item>
           }
 
           <ion-list-header>
             <ion-label>Subscription plans</ion-label>
-            <ion-button (click)="addPlan()" [disabled]="shop.menuItems.length === 0">Add</ion-button>
+            <ion-button size="small" (click)="addPlan()" [disabled]="shop.menuItems.length === 0">Add</ion-button>
           </ion-list-header>
           @for (plan of shop.plans; track plan.id) {
             <ion-item>
@@ -83,7 +83,7 @@ import { Shop } from '../../core/models';
               </ion-label>
             </ion-item>
           } @empty {
-            <ion-item lines="none"><ion-label color="medium">No plans yet — plans are how customers prepay.</ion-label></ion-item>
+            <ion-item lines="none"><ion-label>No plans yet.</ion-label></ion-item>
           }
         </ion-list>
       }

@@ -1,8 +1,7 @@
 import { Component } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import {
-  IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle,
-  IonContent, IonHeader, IonItem, IonLabel, IonList, IonNote,
+  IonContent, IonHeader, IonItem, IonLabel, IonList, IonListHeader, IonNote,
   IonRefresher, IonRefresherContent, IonTitle, IonToolbar
 } from '@ionic/angular/standalone';
 import { ApiService } from '../../core/api.service';
@@ -12,9 +11,8 @@ import { Wallet } from '../../core/models';
   selector: 'app-wallet',
   standalone: true,
   imports: [
-    DatePipe, IonHeader, IonToolbar, IonTitle, IonContent, IonCard,
-    IonCardHeader, IonCardTitle, IonCardSubtitle, IonCardContent,
-    IonList, IonItem, IonLabel, IonNote, IonRefresher, IonRefresherContent
+    DatePipe, IonHeader, IonToolbar, IonTitle, IonContent, IonList,
+    IonListHeader, IonItem, IonLabel, IonNote, IonRefresher, IonRefresherContent
   ],
   template: `
     <ion-header>
@@ -25,17 +23,18 @@ import { Wallet } from '../../core/models';
         <ion-refresher-content></ion-refresher-content>
       </ion-refresher>
 
-      <ion-card>
-        <ion-card-header>
-          <ion-card-subtitle>Available balance</ion-card-subtitle>
-          <ion-card-title>₹{{ wallet?.balance ?? 0 }}</ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          Applied automatically when you choose “Use wallet” on a new subscription.
-        </ion-card-content>
-      </ion-card>
-
       <ion-list>
+        <ion-item>
+          <ion-label>Balance</ion-label>
+          <ion-note slot="end">₹{{ wallet?.balance ?? 0 }}</ion-note>
+        </ion-item>
+        <ion-item lines="full">
+          <ion-label>
+            <p>The balance is applied when you tick “Use wallet balance” on a new subscription.</p>
+          </ion-label>
+        </ion-item>
+
+        <ion-list-header><ion-label>Transactions</ion-label></ion-list-header>
         @for (tx of wallet?.transactions ?? []; track tx.id) {
           <ion-item>
             <ion-label>
@@ -45,7 +44,7 @@ import { Wallet } from '../../core/models';
             <ion-note slot="end">₹{{ tx.amount }}</ion-note>
           </ion-item>
         } @empty {
-          <ion-item lines="none"><ion-label>No activity yet.</ion-label></ion-item>
+          <ion-item lines="none"><ion-label>No transactions yet.</ion-label></ion-item>
         }
       </ion-list>
     </ion-content>

@@ -19,7 +19,7 @@ import { Router } from '@angular/router';
   template: `
     <ion-header>
       <ion-toolbar>
-        <ion-title>Chai near you</ion-title>
+        <ion-title>Shops</ion-title>
         <ion-buttons slot="end">
           <ion-button (click)="logout()">Logout</ion-button>
         </ion-buttons>
@@ -39,7 +39,7 @@ import { Router } from '@angular/router';
             <ion-note slot="end">{{ shop.plans.length }} plan{{ shop.plans.length === 1 ? '' : 's' }}</ion-note>
           </ion-item>
         } @empty {
-          <ion-item lines="none"><ion-label>No shops yet. Check back soon!</ion-label></ion-item>
+          <ion-item lines="none"><ion-label>No shops available.</ion-label></ion-item>
         }
       </ion-list>
     </ion-content>
