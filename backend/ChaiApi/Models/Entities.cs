@@ -23,6 +23,10 @@ public class User
     public required string PasswordHash { get; set; }
     public UserRole Role { get; set; }
     public decimal WalletBalance { get; set; }
+    // Phone captured for future OTP verification; verified stays false until a
+    // real OTP/OAuth provider is wired in.
+    public string? PhoneNumber { get; set; }
+    public bool IsVerified { get; set; }
     public List<Shop> Shops { get; set; } = [];
 }
 
@@ -36,8 +40,50 @@ public class Shop
     public bool AutoAcceptOrders { get; set; }
     // Escrow money already released to this shop but not yet paid out.
     public decimal PayableBalance { get; set; }
+    // Coordinates power "near me" search (haversine distance).
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    // Optional trust signals set by the owner. GstNumber is optional;
+    // IsVerified is granted after phone/GST verification (stubbed for now).
+    public string? GstNumber { get; set; }
+    public bool IsVerified { get; set; }
+    // Optional imported Google rating, blended with the in-app rating.
+    public double? GoogleRating { get; set; }
+    public int GoogleRatingCount { get; set; }
     public List<MenuItem> MenuItems { get; set; } = [];
     public List<Plan> Plans { get; set; } = [];
+    public List<Review> Reviews { get; set; } = [];
+    public List<ShopQuestion> Questions { get; set; } = [];
+}
+
+public class Review
+{
+    public int Id { get; set; }
+    public int ShopId { get; set; }
+    public Shop? Shop { get; set; }
+    public int UserId { get; set; }
+    public User? User { get; set; }
+    public required string UserName { get; set; }
+    public int Rating { get; set; }          // 1..5
+    public string? Comment { get; set; }
+    public DateTime CreatedAt { get; set; }
+
+    // A review counts as positive at 4+ stars; that's what feeds specialities.
+    public bool IsPositive => Rating >= 4;
+}
+
+public class ShopQuestion
+{
+    public int Id { get; set; }
+    public int ShopId { get; set; }
+    public Shop? Shop { get; set; }
+    public int UserId { get; set; }
+    public required string UserName { get; set; }
+    public required string Body { get; set; }
+    public DateTime CreatedAt { get; set; }
+    // Filled in when the owner answers.
+    public string? Answer { get; set; }
+    public DateTime? AnsweredAt { get; set; }
 }
 
 public class MenuItem

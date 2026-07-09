@@ -12,6 +12,8 @@ public class ChaiDbContext(DbContextOptions<ChaiDbContext> options) : DbContext(
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
+    public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<ShopQuestion> Questions => Set<ShopQuestion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -39,5 +41,22 @@ public class ChaiDbContext(DbContextOptions<ChaiDbContext> options) : DbContext(
             .WithMany()
             .HasForeignKey(o => o.UserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Review>()
+            .HasOne(r => r.Shop)
+            .WithMany(s => s.Reviews)
+            .HasForeignKey(r => r.ShopId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // One review per customer per shop; adding again updates it.
+        modelBuilder.Entity<Review>()
+            .HasIndex(r => new { r.ShopId, r.UserId })
+            .IsUnique();
+
+        modelBuilder.Entity<ShopQuestion>()
+            .HasOne(q => q.Shop)
+            .WithMany(s => s.Questions)
+            .HasForeignKey(q => q.ShopId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

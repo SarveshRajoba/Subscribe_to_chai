@@ -8,7 +8,9 @@ public record LoginRequest(string Email, string Password);
 public record AuthResponse(string Token, int UserId, string Name, string Email, UserRole Role);
 
 // ---- Shops / menu / plans ----
-public record ShopUpsertRequest(string Name, string Address, bool AutoAcceptOrders);
+public record ShopUpsertRequest(
+    string Name, string Address, bool AutoAcceptOrders,
+    double? Latitude, double? Longitude, string? GstNumber);
 public record MenuItemUpsertRequest(string Name, decimal Price, bool IsAvailable);
 public record PlanUpsertRequest(
     string Name, int MenuItemId, decimal Price, int CupCount,
@@ -20,8 +22,27 @@ public record PlanDto(
     int CupCount, int ValidityDays, decimal CancellationFeePercent, bool IsActive);
 public record ShopDto(
     int Id, string Name, string Address, bool AutoAcceptOrders,
+    double? Latitude, double? Longitude, string? GstNumber, bool IsVerified,
+    double AppRating, int AppRatingCount, double? GoogleRating, int GoogleRatingCount,
+    double CombinedRating, List<string> Specialities,
     List<MenuItemDto> MenuItems, List<PlanDto> Plans);
+// Shop plus its distance from the searcher (km, null if either side lacks a location).
+public record ShopSearchResultDto(ShopDto Shop, double? DistanceKm, double MatchScore);
 public record ShopEarningsDto(decimal PayableBalance, List<LedgerEntryDto> Entries);
+
+// ---- Reviews & questions ----
+public record ReviewUpsertRequest(int Rating, string? Comment);
+public record ReviewDto(
+    int Id, int UserId, string UserName, int Rating, string? Comment,
+    bool IsPositive, DateTime CreatedAt);
+public record ShopReviewsDto(
+    double AppRating, int AppRatingCount, List<string> Specialities,
+    List<ReviewDto> Good, List<ReviewDto> Bad);
+public record AskQuestionRequest(string Body);
+public record AnswerQuestionRequest(string Answer);
+public record QuestionDto(
+    int Id, int UserId, string UserName, string Body,
+    string? Answer, DateTime CreatedAt, DateTime? AnsweredAt);
 
 // ---- Subscriptions ----
 public record SubscribeRequest(int PlanId, bool UseWallet);

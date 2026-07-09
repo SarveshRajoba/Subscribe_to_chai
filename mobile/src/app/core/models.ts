@@ -34,8 +34,52 @@ export interface Shop {
   name: string;
   address: string;
   autoAcceptOrders: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  gstNumber?: string | null;
+  isVerified: boolean;
+  appRating: number;
+  appRatingCount: number;
+  googleRating?: number | null;
+  googleRatingCount: number;
+  combinedRating: number;
+  specialities: string[];
   menuItems: MenuItem[];
   plans: Plan[];
+}
+
+export interface ShopSearchResult {
+  shop: Shop;
+  distanceKm?: number | null;
+  matchScore: number;
+}
+
+export interface Review {
+  id: number;
+  userId: number;
+  userName: string;
+  rating: number;
+  comment?: string | null;
+  isPositive: boolean;
+  createdAt: string;
+}
+
+export interface ShopReviews {
+  appRating: number;
+  appRatingCount: number;
+  specialities: string[];
+  good: Review[];
+  bad: Review[];
+}
+
+export interface ShopQuestion {
+  id: number;
+  userId: number;
+  userName: string;
+  body: string;
+  answer?: string | null;
+  createdAt: string;
+  answeredAt?: string | null;
 }
 
 export interface Subscription {

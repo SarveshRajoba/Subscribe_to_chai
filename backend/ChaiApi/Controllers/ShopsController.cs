@@ -1,6 +1,7 @@
 using ChaiApi.Data;
 using ChaiApi.Dtos;
 using ChaiApi.Models;
+using ChaiApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,9 +18,43 @@ public class ShopsController(ChaiDbContext db) : ApiControllerBase
         var shops = await db.Shops
             .Include(s => s.MenuItems)
             .Include(s => s.Plans).ThenInclude(p => p.MenuItem)
+            .Include(s => s.Reviews)
             .AsNoTracking()
             .ToListAsync();
-        return shops.Select(ToDto).ToList();
+        return shops.Select(ShopMapping.ToDto).ToList();
+    }
+
+    /// <summary>
+    /// Search shops by beverage/speciality and rank by match, then combined
+    /// rating, then distance (when the caller passes their coordinates).
+    /// </summary>
+    [HttpGet("search")]
+    [AllowAnonymous]
+    public async Task<ActionResult<List<ShopSearchResultDto>>> Search(
+        [FromQuery] string? q, [FromQuery] double? lat, [FromQuery] double? lng)
+    {
+        var shops = await db.Shops
+            .Include(s => s.MenuItems)
+            .Include(s => s.Plans).ThenInclude(p => p.MenuItem)
+            .Include(s => s.Reviews)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var results = shops
+            .Select(shop =>
+            {
+                var dto = ShopMapping.ToDto(shop);
+                var score = ShopMapping.MatchScore(shop, dto, q ?? "");
+                var distance = ShopMapping.DistanceKm(lat, lng, shop.Latitude, shop.Longitude);
+                return new ShopSearchResultDto(dto, distance, score);
+            })
+            .Where(r => string.IsNullOrWhiteSpace(q) || r.MatchScore > 0)
+            .OrderByDescending(r => r.MatchScore)
+            .ThenByDescending(r => r.Shop.CombinedRating)
+            .ThenBy(r => r.DistanceKm ?? double.MaxValue)
+            .ToList();
+
+        return results;
     }
 
     [HttpGet("{id:int}")]
@@ -27,7 +62,7 @@ public class ShopsController(ChaiDbContext db) : ApiControllerBase
     public async Task<ActionResult<ShopDto>> GetShop(int id)
     {
         var shop = await LoadShop(id);
-        return shop is null ? NotFound() : ToDto(shop);
+        return shop is null ? NotFound() : ShopMapping.ToDto(shop);
     }
 
     [HttpGet("mine")]
@@ -38,9 +73,10 @@ public class ShopsController(ChaiDbContext db) : ApiControllerBase
             .Where(s => s.OwnerId == CurrentUserId)
             .Include(s => s.MenuItems)
             .Include(s => s.Plans).ThenInclude(p => p.MenuItem)
+            .Include(s => s.Reviews)
             .AsNoTracking()
             .ToListAsync();
-        return shops.Select(ToDto).ToList();
+        return shops.Select(ShopMapping.ToDto).ToList();
     }
 
     [HttpPost]
@@ -52,11 +88,14 @@ public class ShopsController(ChaiDbContext db) : ApiControllerBase
             OwnerId = CurrentUserId,
             Name = request.Name.Trim(),
             Address = request.Address.Trim(),
-            AutoAcceptOrders = request.AutoAcceptOrders
+            AutoAcceptOrders = request.AutoAcceptOrders,
+            Latitude = request.Latitude,
+            Longitude = request.Longitude,
+            GstNumber = string.IsNullOrWhiteSpace(request.GstNumber) ? null : request.GstNumber.Trim()
         };
         db.Shops.Add(shop);
         await db.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetShop), new { id = shop.Id }, ToDto(shop));
+        return CreatedAtAction(nameof(GetShop), new { id = shop.Id }, ShopMapping.ToDto(shop));
     }
 
     [HttpPut("{id:int}")]
@@ -69,8 +108,11 @@ public class ShopsController(ChaiDbContext db) : ApiControllerBase
         shop.Name = request.Name.Trim();
         shop.Address = request.Address.Trim();
         shop.AutoAcceptOrders = request.AutoAcceptOrders;
+        shop.Latitude = request.Latitude;
+        shop.Longitude = request.Longitude;
+        shop.GstNumber = string.IsNullOrWhiteSpace(request.GstNumber) ? null : request.GstNumber.Trim();
         await db.SaveChangesAsync();
-        return ToDto(shop);
+        return ShopMapping.ToDto(shop);
     }
 
     // ---- Menu items ----
@@ -202,6 +244,7 @@ public class ShopsController(ChaiDbContext db) : ApiControllerBase
         await db.Shops
             .Include(s => s.MenuItems)
             .Include(s => s.Plans).ThenInclude(p => p.MenuItem)
+            .Include(s => s.Reviews)
             .SingleOrDefaultAsync(s => s.Id == id);
 
     private async Task<Shop?> LoadOwnedShop(int id)
@@ -209,10 +252,4 @@ public class ShopsController(ChaiDbContext db) : ApiControllerBase
         var shop = await LoadShop(id);
         return shop is null || shop.OwnerId != CurrentUserId ? null : shop;
     }
-
-    private static ShopDto ToDto(Shop shop) => new(
-        shop.Id, shop.Name, shop.Address, shop.AutoAcceptOrders,
-        shop.MenuItems.Select(m => new MenuItemDto(m.Id, m.Name, m.Price, m.IsAvailable)).ToList(),
-        shop.Plans.Select(p => new PlanDto(p.Id, p.Name, p.MenuItemId, p.MenuItem?.Name ?? "", p.Price,
-            p.CupCount, p.ValidityDays, p.CancellationFeePercent, p.IsActive)).ToList());
 }
