@@ -15,6 +15,7 @@ builder.Services.AddDbContext<ChaiDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
 
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddSingleton<OtpService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

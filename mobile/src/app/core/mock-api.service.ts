@@ -6,12 +6,15 @@ import {
   ShopEarnings, ShopQuestion, ShopReviews, ShopSearchResult, Subscription,
   UserRole, Wallet
 } from './models';
-import { ShopUpsert } from './api.service';
+import { OtpRequestResult, ShopUpsert } from './api.service';
+
+// Fixed OTP for the demo so the flow works without a real SMS provider.
+const DEMO_OTP = '1234';
 
 // Demo mode: mirrors the ChaiApi escrow rules against an in-browser store,
 // so the deployed web app is fully clickable without a hosted backend.
 
-interface DbUser { id: number; name: string; email: string; role: UserRole; walletBalance: number; }
+interface DbUser { id: number; name: string; email: string; role: UserRole; walletBalance: number; phoneNumber?: string | null; isVerified?: boolean; }
 interface DbShop {
   id: number; ownerId: number; name: string; address: string; autoAcceptOrders: boolean;
   payableBalance: number; latitude?: number | null; longitude?: number | null;
@@ -105,6 +108,30 @@ export class MockApiService extends ApiService {
     this.db.users.push(user);
     this.save();
     return this.toAuth(user);
+  }
+
+  override async requestOtp(phoneNumber: string): Promise<OtpRequestResult> {
+    if (phoneNumber.replace(/\D/g, '').length < 10) throw { error: 'Enter a valid phone number.' };
+    // Stubbed send: the demo always uses a fixed code, revealed to the caller.
+    return { sent: true, demoCode: DEMO_OTP };
+  }
+
+  override async verifyOtp(phoneNumber: string, code: string, name?: string, role?: UserRole): Promise<AuthResponse> {
+    if ((code ?? '').trim() !== DEMO_OTP)
+      throw { error: 'That code is wrong or expired. Request a new one.' };
+    const phone = phoneNumber.replace(/\D/g, '');
+    let user = this.db.users.find(u => u.phoneNumber === phone);
+    if (!user) {
+      if (!name?.trim() || !role) throw { error: 'New number — a name and account type are required to sign up.' };
+      user = { id: this.nextId(), name: name.trim(), email: `phone+${phone}@phone.chai`, role, walletBalance: 0, phoneNumber: phone, isVerified: true };
+      this.db.users.push(user);
+      this.save();
+    }
+    return this.toAuth(user);
+  }
+
+  override async googleSignIn(_idToken: string, _name?: string, _role?: UserRole): Promise<AuthResponse> {
+    throw { error: "Google sign-in isn't configured yet. Add a client ID to enable it." };
   }
 
   // ---- Shops ----

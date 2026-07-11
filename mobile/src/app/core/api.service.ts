@@ -18,6 +18,12 @@ export interface ShopUpsert {
   gstNumber?: string | null;
 }
 
+export interface OtpRequestResult {
+  sent: boolean;
+  // Present only in dev/demo so the flow is testable without a real SMS.
+  demoCode?: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   constructor(protected http: HttpClient) {}
@@ -28,6 +34,15 @@ export class ApiService {
   }
   register(name: string, email: string, password: string, role: UserRole): Promise<AuthResponse> {
     return this.post<AuthResponse>('/auth/register', { name, email, password, role });
+  }
+  requestOtp(phoneNumber: string): Promise<OtpRequestResult> {
+    return this.post<OtpRequestResult>('/auth/otp/request', { phoneNumber });
+  }
+  verifyOtp(phoneNumber: string, code: string, name?: string, role?: UserRole): Promise<AuthResponse> {
+    return this.post<AuthResponse>('/auth/otp/verify', { phoneNumber, code, name, role });
+  }
+  googleSignIn(idToken: string, name?: string, role?: UserRole): Promise<AuthResponse> {
+    return this.post<AuthResponse>('/auth/google', { idToken, name, role });
   }
 
   // ---- Shops (public) ----

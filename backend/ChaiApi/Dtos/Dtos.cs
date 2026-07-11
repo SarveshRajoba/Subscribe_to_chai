@@ -7,6 +7,17 @@ public record RegisterRequest(string Name, string Email, string Password, UserRo
 public record LoginRequest(string Email, string Password);
 public record AuthResponse(string Token, int UserId, string Name, string Email, UserRole Role);
 
+// Phone + OTP. On request the code is returned only in dev/demo (DemoCode);
+// in production it is texted and DemoCode is null. Name/Role are needed only
+// when the phone belongs to a brand-new account.
+public record OtpRequestRequest(string PhoneNumber);
+public record OtpRequestResponse(bool Sent, string? DemoCode);
+public record OtpVerifyRequest(string PhoneNumber, string Code, string? Name, UserRole? Role);
+
+// Google sign-in. IdToken comes from the Google button on the client; the
+// server verifies it once a client ID is configured (stubbed until then).
+public record GoogleSignInRequest(string IdToken, string? Name, UserRole? Role);
+
 // ---- Shops / menu / plans ----
 public record ShopUpsertRequest(
     string Name, string Address, bool AutoAcceptOrders,
