@@ -31,6 +31,22 @@ export class AuthService {
     return res;
   }
 
+  requestOtp(phoneNumber: string) {
+    return this.api.requestOtp(phoneNumber);
+  }
+
+  async verifyOtp(phoneNumber: string, code: string, name?: string, role?: UserRole): Promise<AuthResponse> {
+    const res = await this.api.verifyOtp(phoneNumber, code, name, role);
+    this.persist(res);
+    return res;
+  }
+
+  async googleSignIn(idToken: string, name?: string, role?: UserRole): Promise<AuthResponse> {
+    const res = await this.api.googleSignIn(idToken, name, role);
+    this.persist(res);
+    return res;
+  }
+
   logout(): void {
     storage.remove(STORAGE_KEY);
     this.user.set(null);

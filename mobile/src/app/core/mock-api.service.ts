@@ -2,20 +2,31 @@ import { Injectable } from '@angular/core';
 import { ApiService } from './api.service';
 import { storage } from './storage';
 import {
-  AuthResponse, CancelResult, MenuItem, Order, OrderStatus, Plan, Shop,
-  ShopEarnings, Subscription, UserRole, Wallet
+  AuthResponse, CancelResult, MenuItem, Order, OrderStatus, Plan, Review, Shop,
+  ShopEarnings, ShopQuestion, ShopReviews, ShopSearchResult, Subscription,
+  UserRole, Wallet
 } from './models';
+import { OtpRequestResult, ShopUpsert } from './api.service';
+
+// Fixed OTP for the demo so the flow works without a real SMS provider.
+const DEMO_OTP = '1234';
 
 // Demo mode: mirrors the ChaiApi escrow rules against an in-browser store,
 // so the deployed web app is fully clickable without a hosted backend.
 
-interface DbUser { id: number; name: string; email: string; role: UserRole; walletBalance: number; }
-interface DbShop { id: number; ownerId: number; name: string; address: string; autoAcceptOrders: boolean; payableBalance: number; }
+interface DbUser { id: number; name: string; email: string; role: UserRole; walletBalance: number; phoneNumber?: string | null; isVerified?: boolean; }
+interface DbShop {
+  id: number; ownerId: number; name: string; address: string; autoAcceptOrders: boolean;
+  payableBalance: number; latitude?: number | null; longitude?: number | null;
+  gstNumber?: string | null; isVerified: boolean; googleRating?: number | null; googleRatingCount: number;
+}
 interface DbMenuItem extends MenuItem { shopId: number; }
 interface DbPlan { id: number; shopId: number; menuItemId: number; name: string; price: number; cupCount: number; validityDays: number; cancellationFeePercent: number; isActive: boolean; }
 interface DbSubscription { id: number; userId: number; planId: number; shopId: number; startsAt: string; expiresAt: string; cupsTotal: number; cupsUsed: number; amountPaid: number; escrowRemaining: number; status: 'Active' | 'Cancelled' | 'Expired'; }
 interface DbOrder { id: number; subscriptionId: number; userId: number; shopId: number; quantity: number; token: string; status: OrderStatus; createdAt: string; deliveredAt?: string; }
 interface DbLedgerEntry { id: number; type: string; amount: number; userId?: number; shopId?: number; subscriptionId?: number; orderId?: number; description: string; createdAt: string; }
+interface DbReview { id: number; shopId: number; userId: number; userName: string; rating: number; comment?: string | null; createdAt: string; }
+interface DbQuestion { id: number; shopId: number; userId: number; userName: string; body: string; answer?: string | null; createdAt: string; answeredAt?: string | null; }
 
 interface Db {
   seq: number;
@@ -26,11 +37,23 @@ interface Db {
   subscriptions: DbSubscription[];
   orders: DbOrder[];
   ledger: DbLedgerEntry[];
+  reviews: DbReview[];
+  questions: DbQuestion[];
 }
 
-const STORE_KEY = 'chai_demo_db';
+// Bump when the seed/schema changes so returning visitors get a fresh store.
+const STORE_KEY = 'chai_demo_db_v2';
+
+// Chai/attribute words we surface as specialities when praised in a 4★+ review.
+const LEXICON = [
+  'elaichi', 'adrak', 'ginger', 'cardamom', 'masala', 'kadak', 'strong',
+  'malai', 'creamy', 'sweet', 'less sugar', 'sugarless', 'hot', 'fresh',
+  'large', 'big cup', 'cutting', 'filter', 'black', 'green', 'lemon',
+  'tulsi', 'saffron', 'kesar', 'value', 'cheap', 'clean', 'fast'
+];
 
 function seed(): Db {
+  const now = new Date().toISOString();
   return {
     seq: 100,
     users: [
@@ -38,22 +61,30 @@ function seed(): Db {
       { id: 2, name: 'Lakshmi', email: 'lakshmi@demo.com', role: 'Owner', walletBalance: 0 },
     ],
     shops: [
-      { id: 10, ownerId: 1, name: 'Ramesh Tea Stall', address: 'MG Road, Pune', autoAcceptOrders: false, payableBalance: 0 },
-      { id: 11, ownerId: 2, name: 'Lakshmi Filter Coffee', address: 'FC Road, Pune', autoAcceptOrders: true, payableBalance: 0 },
+      { id: 10, ownerId: 1, name: 'Ramesh Tea Stall', address: 'MG Road, Pune', autoAcceptOrders: false, payableBalance: 0, latitude: 18.5164, longitude: 73.8567, gstNumber: '27ABCDE1234F1Z5', isVerified: true, googleRating: 4.3, googleRatingCount: 210 },
+      { id: 11, ownerId: 2, name: 'Lakshmi Filter Coffee', address: 'FC Road, Pune', autoAcceptOrders: true, payableBalance: 0, latitude: 18.5236, longitude: 73.8478, gstNumber: null, isVerified: false, googleRating: 4.6, googleRatingCount: 95 },
     ],
     menuItems: [
       { id: 20, shopId: 10, name: 'Masala Chai', price: 15, isAvailable: true },
-      { id: 21, shopId: 10, name: 'Adrak Chai', price: 18, isAvailable: true },
+      { id: 21, shopId: 10, name: 'Elaichi Chai', price: 18, isAvailable: true },
       { id: 22, shopId: 11, name: 'Filter Coffee', price: 25, isAvailable: true },
     ],
     plans: [
       { id: 30, shopId: 10, menuItemId: 20, name: 'Monthly 30 cups', price: 300, cupCount: 30, validityDays: 30, cancellationFeePercent: 10, isActive: true },
-      { id: 31, shopId: 10, menuItemId: 21, name: 'Adrak 20 cups', price: 280, cupCount: 20, validityDays: 30, cancellationFeePercent: 10, isActive: true },
+      { id: 31, shopId: 10, menuItemId: 21, name: 'Elaichi 20 cups', price: 280, cupCount: 20, validityDays: 30, cancellationFeePercent: 10, isActive: true },
       { id: 32, shopId: 11, menuItemId: 22, name: 'Coffee 25 cups', price: 500, cupCount: 25, validityDays: 30, cancellationFeePercent: 5, isActive: true },
     ],
     subscriptions: [],
     orders: [],
     ledger: [],
+    reviews: [
+      { id: 40, shopId: 10, userId: 3, userName: 'Anita', rating: 5, comment: 'Best elaichi chai, very kadak and large cup', createdAt: now },
+      { id: 41, shopId: 10, userId: 4, userName: 'Vijay', rating: 4, comment: 'Strong masala chai, fresh and hot', createdAt: now },
+      { id: 42, shopId: 11, userId: 5, userName: 'Sana', rating: 5, comment: 'Authentic filter coffee, creamy and strong', createdAt: now },
+    ],
+    questions: [
+      { id: 50, shopId: 10, userId: 3, userName: 'Anita', body: 'Do you have sugarless chai?', answer: 'Yes, tell us at the counter.', createdAt: now, answeredAt: now },
+    ],
   };
 }
 
@@ -79,6 +110,30 @@ export class MockApiService extends ApiService {
     return this.toAuth(user);
   }
 
+  override async requestOtp(phoneNumber: string): Promise<OtpRequestResult> {
+    if (phoneNumber.replace(/\D/g, '').length < 10) throw { error: 'Enter a valid phone number.' };
+    // Stubbed send: the demo always uses a fixed code, revealed to the caller.
+    return { sent: true, demoCode: DEMO_OTP };
+  }
+
+  override async verifyOtp(phoneNumber: string, code: string, name?: string, role?: UserRole): Promise<AuthResponse> {
+    if ((code ?? '').trim() !== DEMO_OTP)
+      throw { error: 'That code is wrong or expired. Request a new one.' };
+    const phone = phoneNumber.replace(/\D/g, '');
+    let user = this.db.users.find(u => u.phoneNumber === phone);
+    if (!user) {
+      if (!name?.trim() || !role) throw { error: 'New number — a name and account type are required to sign up.' };
+      user = { id: this.nextId(), name: name.trim(), email: `phone+${phone}@phone.chai`, role, walletBalance: 0, phoneNumber: phone, isVerified: true };
+      this.db.users.push(user);
+      this.save();
+    }
+    return this.toAuth(user);
+  }
+
+  override async googleSignIn(_idToken: string, _name?: string, _role?: UserRole): Promise<AuthResponse> {
+    throw { error: "Google sign-in isn't configured yet. Add a client ID to enable it." };
+  }
+
   // ---- Shops ----
 
   override async getShops(): Promise<Shop[]> {
@@ -95,24 +150,123 @@ export class MockApiService extends ApiService {
     return this.db.shops.filter(s => s.ownerId === this.currentUserId()).map(s => this.toShop(s));
   }
 
-  override async createShop(body: { name: string; address: string; autoAcceptOrders: boolean }): Promise<Shop> {
+  override async createShop(body: ShopUpsert): Promise<Shop> {
     const shop: DbShop = {
       id: this.nextId(), ownerId: this.currentUserId(),
       name: body.name.trim(), address: body.address.trim(),
-      autoAcceptOrders: body.autoAcceptOrders, payableBalance: 0
+      autoAcceptOrders: body.autoAcceptOrders, payableBalance: 0,
+      latitude: body.latitude ?? null, longitude: body.longitude ?? null,
+      gstNumber: body.gstNumber?.trim() || null, isVerified: false,
+      googleRating: null, googleRatingCount: 0
     };
     this.db.shops.push(shop);
     this.save();
     return this.toShop(shop);
   }
 
-  override async updateShop(id: number, body: { name: string; address: string; autoAcceptOrders: boolean }): Promise<Shop> {
+  override async updateShop(id: number, body: ShopUpsert): Promise<Shop> {
     const shop = this.ownedShop(id);
     shop.name = body.name.trim();
     shop.address = body.address.trim();
     shop.autoAcceptOrders = body.autoAcceptOrders;
+    shop.latitude = body.latitude ?? null;
+    shop.longitude = body.longitude ?? null;
+    shop.gstNumber = body.gstNumber?.trim() || null;
     this.save();
     return this.toShop(shop);
+  }
+
+  override async searchShops(q: string, lat?: number, lng?: number): Promise<ShopSearchResult[]> {
+    const query = q.trim().toLowerCase();
+    return this.db.shops
+      .map(shop => {
+        const dto = this.toShop(shop);
+        return {
+          shop: dto,
+          distanceKm: this.distanceKm(lat, lng, shop.latitude, shop.longitude),
+          matchScore: this.matchScore(shop, dto, query)
+        } as ShopSearchResult;
+      })
+      .filter(r => query.length === 0 || r.matchScore > 0)
+      .sort((a, b) =>
+        b.matchScore - a.matchScore ||
+        b.shop.combinedRating - a.shop.combinedRating ||
+        (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+  }
+
+  // ---- Reviews & questions ----
+
+  override async getReviews(shopId: number): Promise<ShopReviews> {
+    const shop = this.db.shops.find(s => s.id === shopId);
+    if (!shop) throw { error: 'Shop not found.' };
+    const reviews = this.db.reviews
+      .filter(r => r.shopId === shopId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map(r => this.toReview(r));
+    const ratings = reviews.map(r => r.rating);
+    const appRating = ratings.length === 0 ? 0 : this.round1(ratings.reduce((a, b) => a + b, 0) / ratings.length);
+    return {
+      appRating, appRatingCount: ratings.length, specialities: this.specialities(shopId),
+      good: reviews.filter(r => r.isPositive), bad: reviews.filter(r => !r.isPositive)
+    };
+  }
+
+  override async addReview(shopId: number, rating: number, comment: string): Promise<Review> {
+    if (rating < 1 || rating > 5) throw { error: 'Rating must be between 1 and 5.' };
+    const shop = this.db.shops.find(s => s.id === shopId);
+    if (!shop) throw { error: 'Shop not found.' };
+    const userId = this.currentUserId();
+    const hasOrdered = this.db.orders.some(o => o.shopId === shopId && o.userId === userId && o.status === 'Delivered');
+    if (!hasOrdered) throw { error: 'You can review a shop only after an order has been delivered there.' };
+
+    const user = this.db.users.find(u => u.id === userId)!;
+    const clean = comment?.trim() || null;
+    let review = this.db.reviews.find(r => r.shopId === shopId && r.userId === userId);
+    if (review) {
+      review.rating = rating;
+      review.comment = clean;
+      review.createdAt = new Date().toISOString();
+    } else {
+      review = { id: this.nextId(), shopId, userId, userName: user.name, rating, comment: clean, createdAt: new Date().toISOString() };
+      this.db.reviews.push(review);
+    }
+    this.save();
+    return this.toReview(review);
+  }
+
+  override async getQuestions(shopId: number): Promise<ShopQuestion[]> {
+    if (!this.db.shops.some(s => s.id === shopId)) throw { error: 'Shop not found.' };
+    return this.db.questions
+      .filter(q => q.shopId === shopId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map(q => ({ ...q }));
+  }
+
+  override async askQuestion(shopId: number, body: string): Promise<ShopQuestion> {
+    const text = body?.trim();
+    if (!text) throw { error: 'Question cannot be empty.' };
+    if (!this.db.shops.some(s => s.id === shopId)) throw { error: 'Shop not found.' };
+    const user = this.db.users.find(u => u.id === this.currentUserId())!;
+    const question: DbQuestion = {
+      id: this.nextId(), shopId, userId: user.id, userName: user.name,
+      body: text, answer: null, createdAt: new Date().toISOString(), answeredAt: null
+    };
+    this.db.questions.push(question);
+    this.save();
+    return { ...question };
+  }
+
+  override async answerQuestion(shopId: number, questionId: number, answer: string): Promise<ShopQuestion> {
+    const text = answer?.trim();
+    if (!text) throw { error: 'Answer cannot be empty.' };
+    const shop = this.db.shops.find(s => s.id === shopId);
+    if (!shop || shop.ownerId !== this.currentUserId()) throw { error: 'Shop not found.' };
+    const question = this.db.questions.find(q => q.id === questionId && q.shopId === shopId);
+    if (!question) throw { error: 'Question not found.' };
+    question.answer = text;
+    question.answeredAt = new Date().toISOString();
+    this.save();
+    return { ...question };
   }
 
   override async addMenuItem(shopId: number, body: { name: string; price: number; isAvailable: boolean }): Promise<MenuItem> {
@@ -327,11 +481,71 @@ export class MockApiService extends ApiService {
   }
 
   private toShop(shop: DbShop): Shop {
+    const ratings = this.db.reviews.filter(r => r.shopId === shop.id).map(r => r.rating);
+    const appRating = ratings.length === 0 ? 0 : this.round1(ratings.reduce((a, b) => a + b, 0) / ratings.length);
+    const combinedRating = this.combinedRating(appRating, ratings.length, shop.googleRating, shop.googleRatingCount);
     return {
       id: shop.id, name: shop.name, address: shop.address, autoAcceptOrders: shop.autoAcceptOrders,
+      latitude: shop.latitude ?? null, longitude: shop.longitude ?? null,
+      gstNumber: shop.gstNumber ?? null, isVerified: shop.isVerified,
+      appRating, appRatingCount: ratings.length,
+      googleRating: shop.googleRating ?? null, googleRatingCount: shop.googleRatingCount,
+      combinedRating, specialities: this.specialities(shop.id),
       menuItems: this.db.menuItems.filter(m => m.shopId === shop.id),
       plans: this.db.plans.filter(p => p.shopId === shop.id).map(p => this.toPlan(p))
     };
+  }
+
+  private toReview(r: DbReview): Review {
+    return { id: r.id, userId: r.userId, userName: r.userName, rating: r.rating, comment: r.comment, isPositive: r.rating >= 4, createdAt: r.createdAt };
+  }
+
+  /** Specialities: terms from a shop's menu + lexicon that recur in 4★+ reviews. */
+  private specialities(shopId: number, max = 5): string[] {
+    const positive = this.db.reviews.filter(r => r.shopId === shopId && r.rating >= 4 && r.comment);
+    if (positive.length === 0) return [];
+    const terms = Array.from(new Set([
+      ...this.db.menuItems.filter(m => m.shopId === shopId).map(m => m.name.toLowerCase()),
+      ...LEXICON
+    ]));
+    const counts = new Map<string, number>();
+    for (const review of positive) {
+      const text = review.comment!.toLowerCase();
+      for (const term of terms) {
+        if (text.includes(term)) counts.set(term, (counts.get(term) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, max)
+      .map(([term]) => term.replace(/\b\w/g, c => c.toUpperCase()));
+  }
+
+  private matchScore(shop: DbShop, dto: Shop, query: string): number {
+    if (query.length === 0) return 1;
+    let score = 0;
+    if (shop.name.toLowerCase().includes(query)) score += 2;
+    if (dto.specialities.some(s => s.toLowerCase().includes(query))) score += 3;
+    if (this.db.menuItems.some(m => m.shopId === shop.id && m.name.toLowerCase().includes(query))) score += 2;
+    return score;
+  }
+
+  private combinedRating(appRating: number, appCount: number, googleRating: number | null | undefined, googleCount: number): number {
+    const sum = appRating * appCount + (googleRating ?? 0) * googleCount;
+    const count = appCount + googleCount;
+    return count === 0 ? 0 : this.round1(sum / count);
+  }
+
+  private distanceKm(lat1?: number | null, lon1?: number | null, lat2?: number | null, lon2?: number | null): number | null {
+    if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
+    const r = 6371, d2r = (d: number) => d * Math.PI / 180;
+    const dLat = d2r(lat2 - lat1), dLon = d2r(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(d2r(lat1)) * Math.cos(d2r(lat2)) * Math.sin(dLon / 2) ** 2;
+    return this.round1(r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+  }
+
+  private round1(v: number): number {
+    return Math.round(v * 10) / 10;
   }
 
   private toPlan(plan: DbPlan): Plan {

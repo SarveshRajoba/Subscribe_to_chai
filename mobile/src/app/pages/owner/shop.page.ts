@@ -8,7 +8,7 @@ import {
 } from '@ionic/angular/standalone';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
-import { Shop } from '../../core/models';
+import { Shop, ShopQuestion } from '../../core/models';
 
 @Component({
   selector: 'app-owner-shop',
@@ -85,13 +85,31 @@ import { Shop } from '../../core/models';
           } @empty {
             <ion-item lines="none"><ion-label>No plans yet.</ion-label></ion-item>
           }
+
+          <ion-list-header><ion-label>Customer questions</ion-label></ion-list-header>
+          @for (q of questions; track q.id) {
+            <ion-item>
+              <ion-label class="ion-text-wrap">
+                <h3>{{ q.userName }}</h3>
+                <p>{{ q.body }}</p>
+                @if (q.answer) { <p class="answered">You: {{ q.answer }}</p> }
+              </ion-label>
+              @if (!q.answer) {
+                <ion-button slot="end" size="small" (click)="answer(q.id)">Answer</ion-button>
+              }
+            </ion-item>
+          } @empty {
+            <ion-item lines="none"><ion-label>No questions yet.</ion-label></ion-item>
+          }
         </ion-list>
       }
     </ion-content>
-  `
+  `,
+  styles: [`.answered { color: var(--ion-color-primary); }`]
 })
 export class OwnerShopPage {
   shop?: Shop;
+  questions: ShopQuestion[] = [];
   name = '';
   address = '';
   autoAccept = false;
@@ -111,6 +129,32 @@ export class OwnerShopPage {
   async load(): Promise<void> {
     const shops = await this.api.getMyShops();
     this.shop = shops[0];
+    this.questions = this.shop ? await this.api.getQuestions(this.shop.id) : [];
+  }
+
+  async answer(questionId: number): Promise<void> {
+    const alert = await this.alerts.create({
+      header: 'Answer question',
+      inputs: [{ name: 'answer', type: 'textarea', placeholder: 'Your reply' }],
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        { text: 'Send', handler: (data) => void this.doAnswer(questionId, data.answer) }
+      ]
+    });
+    await alert.present();
+  }
+
+  private async doAnswer(questionId: number, answer: string): Promise<void> {
+    try {
+      await this.api.answerQuestion(this.shop!.id, questionId, answer ?? '');
+      await this.load();
+    } catch (e: any) {
+      const t = await this.toast.create({
+        message: typeof e?.error === 'string' ? e.error : 'Could not send the answer.',
+        duration: 2500
+      });
+      await t.present();
+    }
   }
 
   async create(): Promise<void> {
